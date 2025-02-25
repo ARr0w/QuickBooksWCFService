@@ -1,0 +1,14 @@
+<QBWCXML>
+  <AppName>Inventory Sync</AppName>
+  <AppID></AppID>
+  <AppURL>http://localhost:5052/QuickBookConnector.asmx</AppURL>
+  <AppDescription>Integration with QuickBooks</AppDescription>
+  <UserName>string</UserName>
+  <OwnerID>{57F3B9B5-86F1-4fcc-B1EE-566DE1813D20}</OwnerID>
+  <FileID>{90A44FB5-33D9-4815-AC85-BC87A7E7D1EB}</FileID>
+  <QBType>QBFS</QBType>
+ <Scheduler>
+    <Frequency>Daily</Frequency>
+    <StartTime>02:00</StartTime> <!-- This sets the time to 2 AM -->
+ </Scheduler>
+</QBWCXML>
