@@ -14,52 +14,66 @@ namespace QuickBooksWCFService.WCFServices
         private readonly IServiceScopeFactory _scopeFactory;
 
         private static readonly Dictionary<string, string> QbErrorMessages = new()
-        {
-            { "0x80040400", "QuickBooks found an error when parsing the provided XML text stream." },
-            { "0x80040401", "Could not access QuickBooks." },
-            { "0x80040402", "Unexpected error. Check the qbsdklog.txt file for additional information." }
-        };
-
-        private readonly Dictionary<string, string> _requests;
+{
+    { "0x80040400", "QuickBooks found an error when parsing the provided XML text stream." },
+    { "0x80040401", "Could not access QuickBooks." },
+    { "0x80040402", "Unexpected error. Check the qbsdklog.txt file for additional information." }
+};
 
         public QuickBookConnector(IServiceScopeFactory scopeFactory, IConfiguration configuration, ILogger<QuickBookConnector> logger)
         {
             _configuration = configuration;
             _logger = logger;
             _scopeFactory = scopeFactory;
-
-            _requests = BuildRequest();
         }
 
-        public string ClientVersion(string strVersion) => "1.0";
-
-        public string ServerVersion() => "QBWC WCF Service v1.0";
-
-        public string[] Authenticate(string strUserName, string strPassword)
+        public string clientVersion(string strVersion)
         {
-            _logger.LogInformation("Athenticating");
+            _logger.LogInformation($"Received Quickbook version {strVersion}");
 
-            var creds = _configuration["Secret"]?.Split("||");
+            return "O:1.0";
+        }
+
+        public string serverVersion() => "QBWC WCF Service v1.0";
+
+        public string[] authenticate(string strUserName, string strPassword)
+        {
+            _logger.LogInformation("Authenticating user: {UserName}", strUserName);
 
             string[] authReturn = new string[2];
             authReturn[0] = Guid.NewGuid().ToString();
+            authReturn[1] = "nvu";
 
-            if (creds != null && strUserName.IsHashValid(creds[1]) && strPassword.IsHashValid(creds[0]))
+            var secret = _configuration["Secret"];
+            if (string.IsNullOrEmpty(secret))
             {
-                _sessionDetails.Add(authReturn[0], new Dictionary<string, object>());
-                _logger.LogInformation("User Authenticated");
-                _sessionDetails[authReturn[0]].Add("userName", strUserName);
-                authReturn[1] = string.Empty;
-                return authReturn; // Empty means use the default QB Company file
+                _logger.LogError("Secret is not configured.");
+                return authReturn;
             }
 
-            _logger.LogInformation("Invalid User");
-            authReturn[1] = "nvu";
+            var creds = secret.Split("||", StringSplitOptions.RemoveEmptyEntries);
+            if (creds.Length < 2)
+            {
+                _logger.LogError("Secret is not properly formatted. Expected format: 'password||username'.");
+                return authReturn;
+            }
+
+            if (strUserName.IsHashValid(creds[1]) && strPassword.IsHashValid(creds[0]))
+            {
+                _sessionDetails.Add(authReturn[0], new Dictionary<string, object>());
+                _logger.LogInformation("User Authenticated. Ticket: {Ticket}", authReturn[0]);
+                _sessionDetails[authReturn[0]].Add("userName", strUserName);
+                authReturn[1] = "";
+            }
+            else
+            {
+                _logger.LogInformation("Invalid User. Ticket: {Ticket}", authReturn[0]);
+            }
 
             return authReturn;
         }
 
-        public XmlElement? SendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers)
+        public XmlElement? sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers)
         {
             _logger.LogInformation("Sending request XML - ItemInventoryQueryRq.xml");
 
@@ -77,11 +91,12 @@ namespace QuickBooksWCFService.WCFServices
 
             int count = Convert.ToInt32(_sessionDetails[ticket]["counter"]);
 
+            Dictionary<string, string> req = BuildRequest();
             string request = "";
 
-            if (count < _requests.Count)
+            if (count < req.Count)
             {
-                request = _requests.ElementAt(count).Value;
+                request = req.ElementAt(count).Value;
                 doc.LoadXml(request);
                 _sessionDetails[ticket]["counter"] = count + 1;
             }
@@ -93,7 +108,7 @@ namespace QuickBooksWCFService.WCFServices
             return doc.DocumentElement;
         }
 
-        public int ReceiveResponseXML(string ticket, string response, string hresult, string message)
+        public int receiveResponseXML(string ticket, string response, string hresult, string message)
         {
             if (!_sessionDetails.ContainsKey(ticket))
             {
@@ -123,7 +138,8 @@ namespace QuickBooksWCFService.WCFServices
             {
                 logMessages.Add($"Length of response received = {response.Length}");
 
-                var responseOf = _requests.ElementAt((Convert.ToInt32(_sessionDetails[ticket]["counter"]) - 1));
+                var requests = BuildRequest();
+                var responseOf = requests.ElementAt((Convert.ToInt32(_sessionDetails[ticket]["counter"]) - 1));
 
                 var serviceFactory = _scopeFactory.CreateScope().ServiceProvider.GetRequiredService<ServiceFactory>();
                 var service = serviceFactory.GetService(responseOf.Key);
@@ -132,7 +148,7 @@ namespace QuickBooksWCFService.WCFServices
                     _ = Task.Run(() => service.HandleDataAsync(response));
                 }
 
-                int total = _requests.Count;
+                int total = requests.Count;
                 var counter = Convert.ToInt32(_sessionDetails[ticket]["counter"]);
                 int percentage = (counter * 100) / total;
                 retVal = percentage >= 100 ? 0 : percentage;
@@ -146,7 +162,7 @@ namespace QuickBooksWCFService.WCFServices
             return retVal;
         }
 
-        public string ConnectionError(string ticket, string hresult, string message)
+        public string connectionError(string ticket, string hresult, string message)
         {
             var logMessages = new List<string>
             {
@@ -176,7 +192,7 @@ namespace QuickBooksWCFService.WCFServices
             return retVal;
         }
 
-        public string GetLastError(string ticket)
+        public string getLastError(string ticket)
         {
             string evLogTxt = $"WebMethod: GetLastError() has been called by QBWebconnector\r\n\r\n" +
                    $"Parameters received:\r\n" +
@@ -191,7 +207,7 @@ namespace QuickBooksWCFService.WCFServices
             return retVal;
         }
 
-        public string CloseConnection(string ticket)
+        public string closeConnection(string ticket)
         {
             _sessionDetails.Remove(ticket);
             return "OK";

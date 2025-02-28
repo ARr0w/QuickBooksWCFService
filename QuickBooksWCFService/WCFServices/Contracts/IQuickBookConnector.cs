@@ -1,33 +1,36 @@
 ﻿using CoreWCF;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace QuickBooksWCFService.WCFServices.Contracts
 {
-    [ServiceContract(Namespace = "http://tempuri.org/")]
+    [ServiceContract(Namespace = "http://developer.intuit.com/")]
     public interface IQuickBookConnector
     {
-        [OperationContract(Action = "http://tempuri.org/ClientVersion")]
-        string ClientVersion(string strVersion);
+        [OperationContract(Action = "http://developer.intuit.com/clientVersion")]
+        string clientVersion(string strVersion);
 
-        [OperationContract(Action = "http://tempuri.org/ServerVersion")]
-        string ServerVersion();
+        [OperationContract(Action = "http://developer.intuit.com/serverVersion")]
+        string serverVersion();
 
-        [OperationContract(Action = "http://tempuri.org/Authenticate")]
-        string[] Authenticate(string strUserName, string strPassword);
+        [OperationContract(Action = "http://developer.intuit.com/authenticate")]
+        [XmlSerializerFormat]
+        [return: XmlArray("authenticateResult"), XmlArrayItem("string")]
+        string[] authenticate(string strUserName, string strPassword);
 
-        [OperationContract(Action = "http://tempuri.org/SendRequestXML")]
-        XmlElement? SendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers);
+        [OperationContract(Action = "http://developer.intuit.com/sendRequestXML")]
+        XmlElement? sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers);
 
-        [OperationContract(Action = "http://tempuri.org/ReceiveResponseXML")]
-        int ReceiveResponseXML(string ticket, string response, string hresult, string message);
+        [OperationContract(Action = "http://developer.intuit.com/receiveResponseXML")]
+        int receiveResponseXML(string ticket, string response, string hresult, string message);
 
-        [OperationContract(Action = "http://tempuri.org/ConnectionError")]
-        string ConnectionError(string ticket, string hresult, string message);
+        [OperationContract(Action = "http://developer.intuit.com/connectionError")]
+        string connectionError(string ticket, string hresult, string message);
 
-        [OperationContract(Action = "http://tempuri.org/GetLastError")]
-        string GetLastError(string ticket);
+        [OperationContract(Action = "http://developer.intuit.com/getLastError")]
+        string getLastError(string ticket);
 
-        [OperationContract(Action = "http://tempuri.org/CloseConnection")]
-        string CloseConnection(string ticket);
+        [OperationContract(Action = "http://developer.intuit.com/closeConnection")]
+        string closeConnection(string ticket);
     }
 }
