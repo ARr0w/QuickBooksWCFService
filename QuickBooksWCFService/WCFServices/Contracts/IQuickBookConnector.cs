@@ -19,7 +19,9 @@ namespace QuickBooksWCFService.WCFServices.Contracts
         string[] authenticate(string strUserName, string strPassword);
 
         [OperationContract(Action = "http://developer.intuit.com/sendRequestXML")]
-        XmlElement? sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers);
+        [XmlSerializerFormat]
+        [return: XmlElement("sendRequestXMLResult")]
+        string sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers);
 
         [OperationContract(Action = "http://developer.intuit.com/receiveResponseXML")]
         int receiveResponseXML(string ticket, string response, string hresult, string message);

@@ -1,5 +1,4 @@
-﻿using System.Xml;
-using QuickBooksWCFService.Extensions;
+﻿using QuickBooksWCFService.Extensions;
 using QuickBooksWCFService.Services;
 using QuickBooksWCFService.WCFServices.Contracts;
 
@@ -14,11 +13,11 @@ namespace QuickBooksWCFService.WCFServices
         private readonly IServiceScopeFactory _scopeFactory;
 
         private static readonly Dictionary<string, string> QbErrorMessages = new()
-{
-    { "0x80040400", "QuickBooks found an error when parsing the provided XML text stream." },
-    { "0x80040401", "Could not access QuickBooks." },
-    { "0x80040402", "Unexpected error. Check the qbsdklog.txt file for additional information." }
-};
+        {
+            { "0x80040400", "QuickBooks found an error when parsing the provided XML text stream." },
+            { "0x80040401", "Could not access QuickBooks." },
+            { "0x80040402", "Unexpected error. Check the qbsdklog.txt file for additional information." }
+        };
 
         public QuickBookConnector(IServiceScopeFactory scopeFactory, IConfiguration configuration, ILogger<QuickBookConnector> logger)
         {
@@ -63,7 +62,8 @@ namespace QuickBooksWCFService.WCFServices
                 _sessionDetails.Add(authReturn[0], new Dictionary<string, object>());
                 _logger.LogInformation("User Authenticated. Ticket: {Ticket}", authReturn[0]);
                 _sessionDetails[authReturn[0]].Add("userName", strUserName);
-                authReturn[1] = "";
+
+                authReturn[1] = _configuration["companyFilePath"] ?? "";
             }
             else
             {
@@ -73,15 +73,13 @@ namespace QuickBooksWCFService.WCFServices
             return authReturn;
         }
 
-        public XmlElement? sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers)
+        public string sendRequestXML(string ticket, string strHCPResponse, string strCompanyFileName, string strCountry, int qbXMLMajorVers, int qbXMLMinorVers)
         {
             _logger.LogInformation("Sending request XML - ItemInventoryQueryRq.xml");
 
-            XmlDocument doc = new XmlDocument();
-
             if (!_sessionDetails.ContainsKey(ticket))
             {
-                return doc.DocumentElement;
+                return "";
             }
 
             if (!_sessionDetails[ticket].ContainsKey("counter"))
@@ -97,7 +95,6 @@ namespace QuickBooksWCFService.WCFServices
             if (count < req.Count)
             {
                 request = req.ElementAt(count).Value;
-                doc.LoadXml(request);
                 _sessionDetails[ticket]["counter"] = count + 1;
             }
             else
@@ -105,7 +102,7 @@ namespace QuickBooksWCFService.WCFServices
                 _sessionDetails[ticket]["counter"] = 0;
             }
 
-            return doc.DocumentElement;
+            return request;
         }
 
         public int receiveResponseXML(string ticket, string response, string hresult, string message)
@@ -151,7 +148,7 @@ namespace QuickBooksWCFService.WCFServices
                 int total = requests.Count;
                 var counter = Convert.ToInt32(_sessionDetails[ticket]["counter"]);
                 int percentage = (counter * 100) / total;
-                retVal = percentage >= 100 ? 0 : percentage;
+                retVal = percentage >= 100 ? 100 : percentage;
             }
 
             logMessages.Add($"Return values:");
@@ -210,6 +207,7 @@ namespace QuickBooksWCFService.WCFServices
         public string closeConnection(string ticket)
         {
             _sessionDetails.Remove(ticket);
+            _logger.LogInformation("Close Collection Called. Ticket {Ticket} has been removed.", ticket);
             return "OK";
         }
 
