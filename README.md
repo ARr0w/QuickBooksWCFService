@@ -11,7 +11,7 @@
 
 ## 🛠️ Installation & Setup  
 ### Prerequisites  
-- .NET 6+  
+- .NET 9  
 - QuickBooks Desktop with Web Connector installed  
 - SQL Server (or modify for your database preference)  
 
